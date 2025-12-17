@@ -1,0 +1,20 @@
+
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+
+#env config
+.env
+
+# Node.js
+package-lock.json
+package.json
+
+#docs
+docs/
+
+.features-gen
