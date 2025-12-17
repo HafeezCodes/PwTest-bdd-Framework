@@ -13,17 +13,13 @@ const test = base.extend({
         await use(new ActionUtils(page));
     },
 
-    pageFactory: async ({ page }, use) => {
-        await use(new PageFactory(page));
-    },
-
-    pageObjects: async ({ pageFactory }, use) => {
+    pageObjects: async ({ page }, use) => {
+        const pageFactory = new PageFactory(page);
         await use(pageFactory.getAll());
     },
 
     getActivePage: async ({ pageObjects }, use) => {
-        const getActive = () => resolveActivePage(pageObjects);
-        await use(getActive);
+        await use(() => resolveActivePage(pageObjects));
     }
 
 });
