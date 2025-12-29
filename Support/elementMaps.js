@@ -4,39 +4,39 @@
 
 module.exports = {
 
-    fields: {
+    field: {
         'Username': ({ active }) => active.usernameInput,
         'Password': ({ active }) => active.passwordInput
     },
 
-    dropdowns: {
+    dropdown: {
         'User Type': ({ active }) => active.userTypeDropdown
     },
 
-    buttons: {
+    button: {
         'Sign In': ({ active }) => active.loginButton,
         'Okay': ({ active }) => active.okayButton,
         'Cancel': ({ active }) => active.cancelButton
     },
 
-    checkboxes: {
+    checkbox: {
         'I Agree to the terms and conditions': ({ active }) => active.termsCheckbox
     },
 
-    radios: {
+    radio: {
         'Admin': ({ active }) => active.adminRadio,
         'User': ({ active }) => active.userRadio
     },
 
-    links: {
+    link: {
         'Free Access to InterviewQues/ResumeAssistance/Material': ({ active }) => active.blinkingTextLink
     },
 
-    modals: {
+    modal: {
         'User Role Warning': ({ active }) => active.modal
     },
 
-    errors: {
+    error: {
         'Empty username/password.': ({ active }) => active.errorEmptyCredentials
     }
 };

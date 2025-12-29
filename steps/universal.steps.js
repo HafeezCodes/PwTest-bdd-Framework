@@ -6,28 +6,28 @@ const { Given, When, Then } = require('../Support/bdd');
 const envConfig = require('../.env.config');
 const { ActionUtils } = require('../utils/ActionUtils/ActionUtils');
 const {
-    buttons,
-    fields,
-    dropdowns,
-    checkboxes,
-    radios,
-    links,
-    modals,
-    errors
+    button,
+    field,
+    dropdown,
+    checkbox,
+    radio,
+    link,
+    modal,
+    error
 } = require('../Support/elementMaps');
 
 /* --------------------------------------------------------
    HELPER: Resolve element from maps
 -------------------------------------------------------- */
-function resolveElement(maps, name, ctx) {
-    const resolver = maps[name];
+function resolveElement(elementCategory, elementName, context) {
+    const resolver = elementCategory[elementName];
     if (!resolver) {
         throw new Error(
-            `Element "${name}" not found in elementMaps. ` +
-            `Add "${name}" to the correct section in elementMaps.js`
+            `Element "${elementName}" not found in elementMaps. ` +
+            `Add "${elementName}" to the correct element category in elementMaps.js`
         );
     }
-    return resolver(ctx);
+    return resolver(context);
 }
 
 /* --------------------------------------------------------
@@ -73,7 +73,7 @@ When(
     'the user clicks on the {string} button',
     async ({ getActivePage, actionUtils }, buttonName) => {
         const ctx = buildContext(getActivePage);
-        const locator = resolveElement(buttons, buttonName, ctx);
+        const locator = resolveElement(button, buttonName, ctx);
         await actionUtils.click(locator);
     }
 );
@@ -85,9 +85,9 @@ When(
     'the user clicks on the {string} button in the {string} modal',
     async ({ getActivePage, actionUtils }, buttonName, modalName) => {
         const ctx = buildContext(getActivePage);
-        const modalLocator = resolveElement(modals, modalName, ctx);
+        const modalLocator = resolveElement(modal, modalName, ctx);
         await actionUtils.waitForVisible(modalLocator);
-        const buttonLocator = resolveElement(buttons, buttonName, ctx);
+        const buttonLocator = resolveElement(button, buttonName, ctx);
         await actionUtils.click(buttonLocator);
     }
 );
@@ -100,7 +100,7 @@ When(
     async ({ getActivePage, actionUtils }, value, fieldName) => {
         const ctx = buildContext(getActivePage);
         const resolvedValue = resolveValue(value);
-        const locator = resolveElement(fields, fieldName, ctx);
+        const locator = resolveElement(field, fieldName, ctx);
         await actionUtils.fill(locator, resolvedValue);
     }
 );
@@ -112,31 +112,31 @@ When(
     'the user selects {string} from the {string} dropdown',
     async ({ getActivePage, actionUtils }, optionLabel, dropdownName) => {
         const ctx = buildContext(getActivePage);
-        const locator = resolveElement(dropdowns, dropdownName, ctx);
+        const locator = resolveElement(dropdown, dropdownName, ctx);
         await actionUtils.selectByLabel(locator, optionLabel);
     }
 );
 
 /* --------------------------------------------------------
-   CHECKBOXES
+   CHECKBOX
 -------------------------------------------------------- */
 When(
     'the user checks the {string} checkbox',
     async ({ getActivePage, actionUtils }, checkboxName) => {
         const ctx = buildContext(getActivePage);
-        const locator = resolveElement(checkboxes, checkboxName, ctx);
+        const locator = resolveElement(checkbox, checkboxName, ctx);
         await actionUtils.check(locator);
     }
 );
 
 /* --------------------------------------------------------
-   RADIO BUTTONS
+   RADIO BUTTON
 -------------------------------------------------------- */
 When(
     'the user selects the {string} radio button',
     async ({ getActivePage, actionUtils }, radioName) => {
         const ctx = buildContext(getActivePage);
-        const locator = resolveElement(radios, radioName, ctx);
+        const locator = resolveElement(radio, radioName, ctx);
         await actionUtils.selectRadio(locator);
     }
 );
@@ -145,7 +145,7 @@ Then(
     'the {string} radio button is selected',
     async ({ getActivePage }, radioName) => {
         const ctx = buildContext(getActivePage);
-        const locator = resolveElement(radios, radioName, ctx);
+        const locator = resolveElement(radio, radioName, ctx);
         const { expect } = require('@playwright/test');
         await expect(locator).toBeChecked();
     }
@@ -158,7 +158,7 @@ When(
     'the user clicks on the link {string}',
     async ({ page, getActivePage, actionUtils }, linkName) => {
         const ctx = buildContext(getActivePage);
-        const locator = resolveElement(links, linkName, ctx);
+        const locator = resolveElement(link, linkName, ctx);
 
         const context = page.context();
         global.newTab = await actionUtils.waitForNewTab(context, () => locator.click());
@@ -172,7 +172,7 @@ Then(
     'the {string} modal appears',
     async ({ getActivePage, actionUtils }, modalName) => {
         const ctx = buildContext(getActivePage);
-        const locator = resolveElement(modals, modalName, ctx);
+        const locator = resolveElement(modal, modalName, ctx);
         await actionUtils.waitForVisible(locator);
     }
 );
@@ -181,7 +181,7 @@ Then(
     'the {string} modal disappears',
     async ({ getActivePage, actionUtils }, modalName) => {
         const ctx = buildContext(getActivePage);
-        const locator = resolveElement(modals, modalName, ctx);
+        const locator = resolveElement(modal, modalName, ctx);
         await actionUtils.waitForHidden(locator);
     }
 );
@@ -193,7 +193,7 @@ Then(
     'an error message is displayed with text {string}',
     async ({ getActivePage, actionUtils }, errorText) => {
         const ctx = buildContext(getActivePage);
-        const locator = resolveElement(errors, errorText, ctx);
+        const locator = resolveElement(error, errorText, ctx);
         await actionUtils.expectText(locator, errorText);
     }
 );
