@@ -1,40 +1,51 @@
-# pageRegistry.js Documentation
-
----
+# Page Registry Documentation
 
 ## Overview
 
-`pageRegistry.js` is an **auto-discovery module** that automatically finds and registers all Page Object classes in your project. It eliminates manual page registration by scanning the `pages/` directory at runtime.
-
-**Single Responsibility:** Discover and register all page classes automatically.
-
----
+The `pageRegistry.js` module is an **auto-discovery system** that dynamically registers all Page Object classes in the framework. It scans the `pages/` directory at startup, extracts page classes, and creates a registry mapping that connects Gherkin feature files to Page Object instances.
 
 ## File Location
 
 ```
-project-root/
+project/
 ├── Support/
-│   ├── pageRegistry.js    ← THIS FILE
-│   ├── PageFactory.js     ← Uses this registry
-│   ├── fixtures.js
-│   └── bdd.js
+│   └── pageRegistry.js    ← This file
 ├── pages/
-│   ├── BasePage.js        (excluded - base class)
-│   ├── LoginPage.js       ← Auto-discovered
-│   ├── ShopPage.js        ← Auto-discovered
-│   └── HomePage.js        ← Auto-discovered
+│   ├── BasePage.js        ← Excluded from registry
+│   ├── LoginPage.js       ← Auto-registered
+│   └── ShopPage.js        ← Auto-registered
 ```
 
----
+## Purpose
 
-## Complete Code
+| Goal | Description |
+|------|-------------|
+| **Auto-discovery** | No manual registration needed when adding new pages |
+| **Decoupling** | Step definitions reference pages by string, not imports |
+| **Consistency** | Enforces naming conventions across the framework |
+| **Fail-fast** | Validates exports at startup, not during test execution |
+
+## How It Works
+
+```mermaid
+graph TD
+    A[Scan pages/ directory] --> B[Filter *Page.js files]
+    B --> C[Exclude BasePage.js]
+    C --> D[For each file]
+    D --> E[Generate pageKey: 'login']
+    D --> F[Generate className: 'LoginPage']
+    D --> G[Import the file]
+    G --> H{exported.className exists?}
+    H -->|Yes| I[Add to registry]
+    H -->|No| J[Throw Error]
+    I --> K[Export registry object]
+```
+
+## Code Breakdown
+
+### Complete Source Code
 
 ```javascript
-// ==========================================
-// Support/pageRegistry.js
-// ==========================================
-
 const fs = require('fs');
 const path = require('path');
 
@@ -47,8 +58,15 @@ for (const file of files) {
     if (file.endsWith('Page.js') && file !== 'BasePage.js') {
         const fullPath = path.join(pagesDir, file);
         const pageKey = file.replace('Page.js', '').toLowerCase();
+        const className = file.replace('.js', '');
         const exported = require(fullPath);
-        const className = Object.keys(exported)[0];
+        
+        if (!exported[className]) {
+            throw new Error(
+                `${file} must export { ${className} }`
+            );
+        }
+        
         registry[pageKey] = exported[className];
     }
 }
@@ -56,613 +74,281 @@ for (const file of files) {
 module.exports = registry;
 ```
 
----
+### Line-by-Line Explanation
 
-## What Does This File Do?
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                                                                         │
-│   BEFORE (Without Auto-Discovery)                                       │
-│   ════════════════════════════════                                      │
-│                                                                         │
-│   // Manual registration - must update for every new page               │
-│   const registry = {                                                    │
-│       login: require('../pages/LoginPage').LoginPage,                   │
-│       shop: require('../pages/ShopPage').ShopPage,                      │
-│       home: require('../pages/HomePage').HomePage,                      │
-│       // Add new pages manually... easy to forget!                      │
-│   };                                                                    │
-│                                                                         │
-│   ───────────────────────────────────────────────────────────────────   │
-│                                                                         │
-│   AFTER (With Auto-Discovery)                                           │
-│   ═══════════════════════════                                           │
-│                                                                         │
-│   // Automatic - just add files to pages/ folder                        │
-│   // pageRegistry.js finds them automatically!                          │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Line-by-Line Breakdown
-
----
-
-### Lines 1-2: Import Node.js Modules
-
+**Imports:**
 ```javascript
 const fs = require('fs');
 const path = require('path');
 ```
+Node.js built-in modules for file system operations and path manipulation.
 
-| Module | Purpose |
-|--------|---------|
-| `fs` | File System - Read directory contents |
-| `path` | Path utilities - Build file paths safely |
-
-**Why these built-in modules?**
-- `fs.readdirSync()` - Lists all files in a directory
-- `path.join()` - Creates cross-platform file paths (Windows/Mac/Linux)
-
----
-
-### Line 3: Define Pages Directory
-
+**Directory Path:**
 ```javascript
 const pagesDir = path.join(__dirname, '../pages');
 ```
+Creates absolute path to the `pages/` folder relative to this file's location.
 
-**What is `__dirname`?**
+| Variable | Example Value |
+|----------|---------------|
+| `__dirname` | `/project/Support` |
+| `pagesDir` | `/project/pages` |
 
-A Node.js variable containing the current file's directory path.
-
-**Path Resolution:**
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                                                                         │
-│   __dirname = /project/Support                                          │
-│                                                                         │
-│   path.join(__dirname, '../pages')                                      │
-│            = /project/Support + ../pages                                │
-│            = /project/pages                                             │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-**Why use `path.join()`?**
-
-```javascript
-// ❌ BAD: Won't work on Windows (uses backslashes)
-const pagesDir = __dirname + '/../pages';
-
-// ✅ GOOD: Works on all operating systems
-const pagesDir = path.join(__dirname, '../pages');
-```
-
----
-
-### Line 4: Initialize Empty Registry
-
-```javascript
-const registry = {};
-```
-
-**This will become:**
-
-```javascript
-{
-    login: LoginPage,      // class reference
-    shop: ShopPage,        // class reference
-    home: HomePage,        // class reference
-    // ... more pages
-}
-```
-
----
-
-### Line 5: Read All Files in Pages Directory
-
+**Read Directory:**
 ```javascript
 const files = fs.readdirSync(pagesDir);
 ```
-
-**What `readdirSync` returns:**
-
-```javascript
-[
-    'BasePage.js',
-    'HomePage.js',
-    'LoginPage.js',
-    'ShopPage.js'
-]
-```
-
-**Why `readdirSync` (not `readdir`)?**
-
-| Method | Type | Use Case |
-|--------|------|----------|
-| `readdirSync` | Synchronous | Module initialization (runs once at startup) |
-| `readdir` | Asynchronous | Runtime operations (doesn't block) |
-
-Since this runs once when the module loads, synchronous is fine.
-
----
-
-### Lines 6-13: Process Each File
+Synchronously reads all filenames in the pages directory.
 
 ```javascript
-for (const file of files) {
-    if (file.endsWith('Page.js') && file !== 'BasePage.js') {
-        const fullPath = path.join(pagesDir, file);
-        const pageKey = file.replace('Page.js', '').toLowerCase();
-        const exported = require(fullPath);
-        const className = Object.keys(exported)[0];
-        registry[pageKey] = exported[className];
-    }
-}
+// Example result:
+['BasePage.js', 'LoginPage.js', 'ShopPage.js']
 ```
 
-**Let's break this down step by step:**
-
----
-
-#### Step 1: Filter Files
-
+**File Filter:**
 ```javascript
 if (file.endsWith('Page.js') && file !== 'BasePage.js')
 ```
 
-| Condition | Purpose |
-|-----------|--------|
-| `file.endsWith('Page.js')` | Only process page files |
-| `file !== 'BasePage.js'` | Exclude the base class |
+| Filename | `endsWith('Page.js')` | `!== 'BasePage.js'` | Included? |
+|----------|----------------------|---------------------|-----------|
+| `BasePage.js` | ✓ | ✗ | No |
+| `LoginPage.js` | ✓ | ✓ | Yes |
+| `ShopPage.js` | ✓ | ✓ | Yes |
+| `helpers.js` | ✗ | ✓ | No |
 
-**Filter Results:**
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                                                                         │
-│   All Files              After Filter                                   │
-│   ─────────              ────────────                                   │
-│   BasePage.js      →     (excluded - base class)                        │
-│   HomePage.js      →     ✓ HomePage.js                                  │
-│   LoginPage.js     →     ✓ LoginPage.js                                 │
-│   ShopPage.js      →     ✓ ShopPage.js                                  │
-│   utils.js         →     (excluded - not *Page.js)                      │
-│   README.md        →     (excluded - not *Page.js)                      │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-#### Step 2: Build Full Path
-
-```javascript
-const fullPath = path.join(pagesDir, file);
-```
-
-**Example:**
-
-```
-pagesDir = /project/pages
-file = LoginPage.js
-fullPath = /project/pages/LoginPage.js
-```
-
----
-
-#### Step 3: Create Registry Key
-
+**Key Generation:**
 ```javascript
 const pageKey = file.replace('Page.js', '').toLowerCase();
+const className = file.replace('.js', '');
 ```
 
-**Transformation:**
+| Filename | pageKey | className |
+|----------|---------|-----------|
+| `LoginPage.js` | `login` | `LoginPage` |
+| `ShopPage.js` | `shop` | `ShopPage` |
+| `UserProfilePage.js` | `userprofile` | `UserProfilePage` |
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                                                                         │
-│   File Name              Page Key                                       │
-│   ─────────              ────────                                       │
-│   LoginPage.js     →     'login'                                        │
-│   ShopPage.js      →     'shop'                                         │
-│   HomePage.js      →     'home'                                         │
-│   CheckoutPage.js  →     'checkout'                                     │
-│                                                                         │
-│   Steps:                                                                │
-│   1. 'LoginPage.js'.replace('Page.js', '') → 'Login'                    │
-│   2. 'Login'.toLowerCase() → 'login'                                    │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-#### Step 4: Import the Page File
-
+**Import and Validate:**
 ```javascript
 const exported = require(fullPath);
+
+if (!exported[className]) {
+    throw new Error(`${file} must export { ${className} }`);
+}
 ```
+Imports the page file and validates the expected class exists in exports.
 
-**What `require` returns:**
-
-```javascript
-// If LoginPage.js exports:
-module.exports = { LoginPage };
-
-// Then exported = 
-{ LoginPage: [class LoginPage] }
-```
-
----
-
-#### Step 5: Extract Class Name
-
-```javascript
-const className = Object.keys(exported)[0];
-```
-
-**What this does:**
-
-```javascript
-exported = { LoginPage: [class LoginPage] }
-
-Object.keys(exported) = ['LoginPage']
-
-Object.keys(exported)[0] = 'LoginPage'
-```
-
----
-
-#### Step 6: Register the Class
-
+**Register:**
 ```javascript
 registry[pageKey] = exported[className];
 ```
+Stores the page class in the registry object.
 
-**Final result:**
+## Final Output
 
-```javascript
-registry['login'] = LoginPage  // The actual class
-```
-
----
-
-## Complete Transformation Example
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                                                                         │
-│   FILE: LoginPage.js                                                    │
-│   ══════════════════                                                    │
-│                                                                         │
-│   Step 1: file = 'LoginPage.js'                                         │
-│                                                                         │
-│   Step 2: Passes filter?                                                │
-│           - ends with 'Page.js'? ✓                                      │
-│           - not 'BasePage.js'? ✓                                        │
-│           → YES, process it                                             │
-│                                                                         │
-│   Step 3: fullPath = '/project/pages/LoginPage.js'                      │
-│                                                                         │
-│   Step 4: pageKey = 'LoginPage.js'                                      │
-│                      .replace('Page.js', '') → 'Login'                  │
-│                      .toLowerCase() → 'login'                           │
-│                                                                         │
-│   Step 5: exported = require(fullPath)                                  │
-│                    = { LoginPage: [class] }                             │
-│                                                                         │
-│   Step 6: className = Object.keys(exported)[0]                          │
-│                     = 'LoginPage'                                       │
-│                                                                         │
-│   Step 7: registry['login'] = exported['LoginPage']                     │
-│                             = LoginPage class                           │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Final Registry Output
+The registry exports an object mapping pageKeys to Page classes:
 
 ```javascript
-// After processing all files:
-registry = {
-    login: LoginPage,      // Class reference (not instance)
-    shop: ShopPage,        // Class reference
-    home: HomePage,        // Class reference
-    checkout: CheckoutPage // Class reference
+{
+    "login": [class LoginPage],
+    "shop": [class ShopPage]
 }
 ```
 
----
+## Integration with Framework
 
-## How PageFactory Uses This
+### Connection Flow
+
+```mermaid
+graph LR
+    A["Feature: 'login' page"] --> B[universal.steps.js]
+    B --> C["pageObjects['loginPage']"]
+    C --> D[PageFactory.getAll]
+    D --> E[PageFactory.get]
+    E --> F["registry['login']"]
+    F --> G[LoginPage instance]
+```
+
+### How Gherkin Connects to Pages
+
+**Step 1: Feature File**
+```gherkin
+Given the user navigates to the "login" page
+```
+
+**Step 2: Step Definition**
+```javascript
+Given('the user navigates to the {string} page', async ({ pageObjects }, pageName) => {
+    const pageObject = pageObjects[pageName + "Page"];
+    // pageObjects["loginPage"]
+});
+```
+
+**Step 3: PageFactory**
+```javascript
+getAll() {
+    const all = {};
+    for (const key of Object.keys(pageRegistry)) {
+        all[key + 'Page'] = this.get(key);
+        // all["loginPage"] = LoginPage instance
+    }
+    return all;
+}
+```
+
+**Step 4: Registry Lookup**
+```javascript
+get(pageKey) {
+    const PageClass = pageRegistry[pageKey];
+    // pageRegistry["login"] → LoginPage class
+    return new PageClass(this.page);
+}
+```
+
+## Naming Conventions
+
+### Required Page File Structure
 
 ```javascript
-// In PageFactory.js:
-const pageRegistry = require('./pageRegistry');
+// Filename: LoginPage.js
 
-class PageFactory {
-    get(pageKey) {
-        const PageClass = pageRegistry[pageKey];  // Get class from registry
-        return new PageClass(this.page);          // Create instance
+const { BasePage } = require('./BasePage');
+
+class LoginPage extends BasePage {
+    constructor(page) {
+        super(page, 'https://example.com/login');
     }
 }
 
-// Usage:
-factory.get('login')  // → new LoginPage(page)
-factory.get('shop')   // → new ShopPage(page)
+module.exports = { LoginPage };  // Must match filename
 ```
 
----
+### Convention Rules
 
-## Naming Convention Requirements
+| Rule | Correct | Incorrect |
+|------|---------|-----------|
+| Filename suffix | `LoginPage.js` | `Login.js` |
+| Export name matches filename | `{ LoginPage }` | `{ Login }` |
+| Class extends BasePage | `class LoginPage extends BasePage` | `class LoginPage` |
+| Single page class per file | One class | Multiple classes |
 
-**For auto-discovery to work, files MUST follow this pattern:**
+## Error Handling
 
+### Validation Errors
+
+**Typo in Export:**
+```javascript
+// LoginPage.js
+module.exports = { LogniPage };  // Typo!
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                                                                         │
-│   FILE NAMING                                                           │
-│   ═══════════                                                           │
-│                                                                         │
-│   ✅ CORRECT                    ❌ WRONG                                │
-│   ───────────                   ─────────                               │
-│   LoginPage.js                  Login.js                                │
-│   ShopPage.js                   ShopPageFile.js                         │
-│   CheckoutPage.js               checkout-page.js                        │
-│   MyCustomPage.js               myCustomPage.js                         │
-│                                                                         │
-│   Pattern: {Name}Page.js                                                │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────┐
-│                                                                         │
-│   EXPORT NAMING                                                         │
-│   ═════════════                                                         │
-│                                                                         │
-│   // ✅ CORRECT: Named export matching file name                        │
-│   class LoginPage { ... }                                               │
-│   module.exports = { LoginPage };                                       │
-│                                                                         │
-│   // ❌ WRONG: Default export                                           │
-│   module.exports = LoginPage;                                           │
-│                                                                         │
-│   // ❌ WRONG: Different export name                                    │
-│   module.exports = { Page: LoginPage };                                 │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
+```
+Error: LoginPage.js must export { LoginPage }
 ```
 
----
+**Missing Export:**
+```javascript
+// LoginPage.js
+module.exports = { };  // Empty!
+```
+```
+Error: LoginPage.js must export { LoginPage }
+```
+
+**Wrong Export Name:**
+```javascript
+// LoginPage.js
+module.exports = { Login };  // Missing "Page" suffix
+```
+```
+Error: LoginPage.js must export { LoginPage }
+```
+
+### Runtime Errors (in PageFactory)
+
+**Unknown Page Requested:**
+```javascript
+pageFactory.get('unknown');
+```
+```
+Error: Unknown page: unknown
+```
+
+## Safety Features
+
+| Concern | How It's Handled |
+|---------|------------------|
+| Helper functions in exports | Ignored — only looks for `exported[className]` |
+| Export order dependency | None — uses filename-derived className |
+| Typo in export name | Caught at startup with clear error |
+| Missing export | Caught at startup with clear error |
+| Non-page files in directory | Filtered out by `endsWith('Page.js')` |
+| BasePage registration | Explicitly excluded |
+
+### Example: Helpers Are Ignored
+
+```javascript
+// LoginPage.js
+const helper = () => { /* ... */ };
+
+class LoginPage extends BasePage { /* ... */ }
+
+module.exports = { 
+    helper,      // ← Ignored by registry
+    LoginPage    // ← Registered
+};
+```
+
+The registry explicitly looks for `exported["LoginPage"]`, so other exports don't interfere.
 
 ## Adding a New Page
 
-**Just create the file - no registration needed!**
+**Step 1:** Create the page file following naming convention:
 
 ```javascript
-// pages/ProductPage.js
+// pages/CheckoutPage.js
+const { BasePage } = require('./BasePage');
 
-class ProductPage {
+class CheckoutPage extends BasePage {
     constructor(page) {
-        this.page = page;
-        this.url = '/products';
-    }
-
-    async navigate() {
-        await this.page.goto(this.url);
+        super(page, 'https://example.com/checkout');
     }
 }
 
-module.exports = { ProductPage };
+module.exports = { CheckoutPage };
 ```
 
-**That's it!** The registry automatically discovers it:
+**Step 2:** Use it in Gherkin:
 
-```javascript
-// registry now includes:
-{
-    login: LoginPage,
-    shop: ShopPage,
-    home: HomePage,
-    product: ProductPage  // ← Automatically added!
-}
+```gherkin
+Given the user navigates to the "checkout" page
 ```
 
----
-
-## Visual: Auto-Discovery Process
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                                                                         │
-│   pages/ directory                                                      │
-│   ════════════════                                                      │
-│                                                                         │
-│   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                  │
-│   │ LoginPage.js │  │ ShopPage.js  │  │ HomePage.js  │                  │
-│   └──────┬───────┘  └──────┬───────┘  └──────┬───────┘                  │
-│          │                 │                 │                          │
-│          │    fs.readdirSync()               │                          │
-│          └─────────────────┼─────────────────┘                          │
-│                            │                                            │
-│                            ▼                                            │
-│                    ┌───────────────┐                                    │
-│                    │ pageRegistry  │                                    │
-│                    │               │                                    │
-│                    │ for each file │                                    │
-│                    │   → filter    │                                    │
-│                    │   → require   │                                    │
-│                    │   → register  │                                    │
-│                    └───────┬───────┘                                    │
-│                            │                                            │
-│                            ▼                                            │
-│                    ┌───────────────┐                                    │
-│                    │   registry    │                                    │
-│                    │               │                                    │
-│                    │ login: Class  │                                    │
-│                    │ shop: Class   │                                    │
-│                    │ home: Class   │                                    │
-│                    └───────────────┘                                    │
-│                            │                                            │
-│                            │ module.exports                             │
-│                            ▼                                            │
-│                    ┌───────────────┐                                    │
-│                    │  PageFactory  │                                    │
-│                    │               │                                    │
-│                    │ Uses registry │                                    │
-│                    │ to create     │                                    │
-│                    │ instances     │                                    │
-│                    └───────────────┘                                    │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Why Auto-Discovery?
-
-### Benefits
-
-| Benefit | Description |
-|---------|-------------|
-| **Zero Configuration** | Just add files, they're automatically found |
-| **No Forgotten Pages** | Can't forget to register a new page |
-| **Single Source of Truth** | File system IS the registry |
-| **Easy Refactoring** | Rename/delete files, registry updates automatically |
-| **Scalability** | Works with 5 pages or 500 pages |
-
-### Trade-offs
-
-| Trade-off | Description |
-|-----------|-------------|
-| **Naming Convention** | Must follow `{Name}Page.js` pattern |
-| **Export Format** | Must use `module.exports = { ClassName }` |
-| **Single Directory** | All pages must be in `pages/` folder |
-
----
-
-## Common Issues
-
----
-
-### Issue 1: Page Not Found
-
-```
-Error: Unknown page: product
-```
-
-**Possible causes:**
-
-| Cause | Solution |
-|-------|----------|
-| Wrong file name | Rename to `ProductPage.js` |
-| Wrong location | Move to `pages/` directory |
-| Wrong export | Use `module.exports = { ProductPage }` |
-
----
-
-### Issue 2: Class is Undefined
-
-```
-TypeError: PageClass is not a constructor
-```
-
-**Cause:** Wrong export format
-
-```javascript
-// ❌ WRONG
-module.exports = ProductPage;
-
-// ✅ CORRECT
-module.exports = { ProductPage };
-```
-
----
-
-### Issue 3: BasePage Being Registered
-
-**This shouldn't happen** - BasePage is explicitly excluded:
-
-```javascript
-if (file.endsWith('Page.js') && file !== 'BasePage.js')
-//                              ^^^^^^^^^^^^^^^^^^^^^^^^
-//                              This excludes BasePage
-```
-
----
-
-## Relationship with Other Files
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                                                                         │
-│   pageRegistry.js                                                       │
-│   ═══════════════                                                       │
-│   Discovers: All page classes                                           │
-│   Exports: { login: LoginPage, shop: ShopPage, ... }                    │
-│                                                                         │
-│        │                                                                │
-│        │ imported by                                                    │
-│        ▼                                                                │
-│                                                                         │
-│   PageFactory.js                                                        │
-│   ══════════════                                                        │
-│   Uses: pageRegistry to find classes                                    │
-│   Creates: Page instances with caching                                  │
-│                                                                         │
-│        │                                                                │
-│        │ used in                                                        │
-│        ▼                                                                │
-│                                                                         │
-│   fixtures.js                                                           │
-│   ═══════════                                                           │
-│   Creates: PageFactory instance                                         │
-│   Provides: pageObjects fixture                                         │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
----
+No changes needed to `pageRegistry.js`, `PageFactory.js`, or step definitions.
 
 ## Quick Reference
 
-### What It Does
+### Input → Output Transformation
 
-| Input | Output |
-|-------|--------|
-| `pages/LoginPage.js` | `{ login: LoginPage }` |
-| `pages/ShopPage.js` | `{ shop: ShopPage }` |
-| `pages/BasePage.js` | (excluded) |
+| Input File | pageKey | className | Registry Entry |
+|------------|---------|-----------|----------------|
+| `LoginPage.js` | `login` | `LoginPage` | `registry["login"] = LoginPage` |
+| `ShopPage.js` | `shop` | `ShopPage` | `registry["shop"] = ShopPage` |
+| `UserProfilePage.js` | `userprofile` | `UserProfilePage` | `registry["userprofile"] = UserProfilePage` |
 
-### File Requirements
+### Gherkin → Class Mapping
 
-| Requirement | Example |
-|-------------|--------|
-| File name | `{Name}Page.js` |
-| Location | `pages/` directory |
-| Export | `module.exports = { ClassName }` |
+| Gherkin String | pageObjects Key | Registry Key | Class |
+|----------------|-----------------|--------------|-------|
+| `"login"` | `loginPage` | `login` | `LoginPage` |
+| `"shop"` | `shopPage` | `shop` | `ShopPage` |
+| `"userprofile"` | `userprofilePage` | `userprofile` | `UserProfilePage` |
 
-### Usage
+## Troubleshooting
 
-```javascript
-// Imported by PageFactory
-const pageRegistry = require('./pageRegistry');
-
-// Access a class
-const LoginPage = pageRegistry['login'];
-const instance = new LoginPage(page);
-```
-
----
-
-## One-Line Summary
-
-> **pageRegistry.js automatically scans the `pages/` folder and creates a lookup table mapping page keys (like 'login') to their class constructors (like LoginPage).**
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| `Unknown page: xyz` | Page file doesn't exist or wrong filename | Create `XyzPage.js` in `pages/` |
+| `must export { XyzPage }` | Export doesn't match filename | Fix export: `module.exports = { XyzPage }` |
+| Page not being registered | Filename doesn't end with `Page.js` | Rename file to `XyzPage.js` |
+| `Cannot read property 'navigate'` | pageKey mismatch in Gherkin | Check spelling in feature file |

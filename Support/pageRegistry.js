@@ -14,11 +14,17 @@ for (const file of files) {
     if (file.endsWith('Page.js') && file !== 'BasePage.js') {
         const fullPath = path.join(pagesDir, file);
         const pageKey = file.replace('Page.js', '').toLowerCase();
+        const className = file.replace('.js', '');
         const exported = require(fullPath);
-        const className = Object.keys(exported)[0];
+        
+        if (!exported[className]) {
+            throw new Error(
+                `${file} must export { ${className} }`
+            );
+        }
+        
         registry[pageKey] = exported[className];
     }
 }
 
 module.exports = registry;
-

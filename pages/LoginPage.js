@@ -1,5 +1,5 @@
 // ==========================================
-// pages/LoginPage.js (Optimized)
+// pages/LoginPage.js
 // ==========================================
 
 const { BasePage } = require('./BasePage');
