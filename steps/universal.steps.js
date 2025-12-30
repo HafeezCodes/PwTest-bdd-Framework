@@ -1,9 +1,4 @@
-// ==========================================
-// steps/universal.steps.js
-// ==========================================
-
-const { Given, When, Then } = require('../Support/bdd');
-const envConfig = require('../.env.config');
+const { Given, When, Then } = require('../Support/testSetup');
 const { ActionUtils } = require('../utils/ActionUtils/ActionUtils');
 const {
     button,
@@ -13,41 +8,11 @@ const {
     radio,
     link,
     modal,
-    error
-} = require('../Support/elementMaps');
-
-/* --------------------------------------------------------
-   HELPER: Resolve element from maps
--------------------------------------------------------- */
-function resolveElement(elementCategory, elementName, context) {
-    const resolver = elementCategory[elementName];
-    if (!resolver) {
-        throw new Error(
-            `Element "${elementName}" not found in elementMaps. ` +
-            `Add "${elementName}" to the correct element category in elementMaps.js`
-        );
-    }
-    return resolver(context);
-}
-
-/* --------------------------------------------------------
-   HELPER: Resolve environment variables
--------------------------------------------------------- */
-function resolveValue(value) {
-    if (envConfig[value]) {
-        return envConfig[value];
-    }
-    return value;
-}
-
-/* --------------------------------------------------------
-   HELPER: Build context for element resolution
--------------------------------------------------------- */
-function buildContext(getActivePage) {
-    return {
-        active: getActivePage()
-    };
-}
+    error,
+    buildContext,
+    resolveElement,
+    resolveValue
+} = require('../Support/elementRegistry');
 
 /* --------------------------------------------------------
    NAVIGATION
