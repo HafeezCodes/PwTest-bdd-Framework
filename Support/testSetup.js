@@ -1,5 +1,5 @@
 // ==========================================
-// Support/testSetup.js
+// Support/TestSetup.js
 // ==========================================
 
 const { test: base } = require('playwright-bdd');

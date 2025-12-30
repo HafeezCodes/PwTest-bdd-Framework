@@ -1,4 +1,4 @@
-const { Given, When, Then } = require('../Support/testSetup');
+const { Given, When, Then } = require('../Support/TestSetup');
 const { ActionUtils } = require('../utils/ActionUtils/ActionUtils');
 const {
     button,
@@ -12,7 +12,7 @@ const {
     buildContext,
     resolveElement,
     resolveValue
-} = require('../Support/elementRegistry');
+} = require('../Support/ElementRegistry');
 
 /* --------------------------------------------------------
    NAVIGATION

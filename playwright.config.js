@@ -11,7 +11,7 @@ const bddConfig = defineBddConfig({
   featuresRoot: './features',
   features: ['**/*.feature'],
   steps: ['./steps/**/*.js'],
-  importTestFrom: './Support/testSetup.js',
+  importTestFrom: './Support/TestSetup.js',
   outputDir: testDir,
   disableWarnings: { importTestFrom: true },
 });

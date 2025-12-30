@@ -31,4 +31,9 @@ module.exports = {
     modal: { locator: '#myModal' },
     okayButton: { locator: '#okayBtn' },
     cancelButton: { locator: '#cancelBtn' },
+
+    // Unregistered Element
+    // forgotPasswordLink: { selector: '#forgot-password' },
+    // forgotPasswordLinkk: { selector: '#forgot-passwordd' }
+
 };
