@@ -35,5 +35,3 @@ class BasePage {
 
 module.exports = { BasePage };
 
-// NOTE: Each page file must export exactly one class as:
-// module.exports = { PageClassName }
