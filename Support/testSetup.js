@@ -7,24 +7,19 @@ const { createBdd } = require('playwright-bdd');
 const { ActionUtils } = require('../utils/ActionUtils/ActionUtils');
 const { PageFactory } = require('./PageFactory');
 
-// ─────────────────────────────────────────────────────────────
 // ACTIVE PAGE RESOLVER
-// ─────────────────────────────────────────────────────────────
-
 function resolveActivePage(pageObjects, options = {}) {
     const {
         throwOnNotFound = false,
         fallbackToFirst = true
     } = options;
 
-    // Find page where isAt() returns true
     for (const [name, po] of Object.entries(pageObjects)) {
         if (po.isAt && po.isAt()) {
             return po;
         }
     }
 
-    // No matching page found
     if (throwOnNotFound) {
         const availablePages = Object.keys(pageObjects).join(', ');
         throw new Error(
@@ -34,7 +29,6 @@ function resolveActivePage(pageObjects, options = {}) {
         );
     }
 
-    // Fallback to first page
     if (fallbackToFirst) {
         return Object.values(pageObjects)[0];
     }
@@ -42,10 +36,7 @@ function resolveActivePage(pageObjects, options = {}) {
     return null;
 }
 
-// ─────────────────────────────────────────────────────────────
 // CUSTOM FIXTURES
-// ─────────────────────────────────────────────────────────────
-
 const test = base.extend({
 
     actionUtils: async ({ page }, use) => {
@@ -63,15 +54,7 @@ const test = base.extend({
 
 });
 
-// ─────────────────────────────────────────────────────────────
-// BDD STEP DEFINITIONS SETUP
-// ─────────────────────────────────────────────────────────────
-
 const { Given, When, Then } = createBdd(test);
-
-// ─────────────────────────────────────────────────────────────
-// EXPORTS
-// ─────────────────────────────────────────────────────────────
 
 module.exports = {
     test,
